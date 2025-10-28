@@ -1232,4 +1232,11 @@ end)
 UpdatePlayerStats()
 UpdateAccountInfo()
 
+local Features = loadstring(game:HttpGet("https://raw.githubusercontent.com/YourUsername/MengHub-FishIt/main/Features.lua"))()
+       if Features then
+           print("Features loaded successfully!")
+       else
+           warn("Failed to load features!")
+       end
+
 print("MengHub Custom UI Berhasil Dimuat!")
