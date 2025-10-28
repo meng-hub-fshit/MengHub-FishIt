@@ -1,0 +1,1235 @@
+--[[
+    ==========================================================================
+    MengHub - Script untuk Fish It (Versi UI Custom)
+    
+    Ini adalah kerangka (pondasi) untuk UI custom.
+    Ini TIDAK menggunakan library eksternal (seperti Rayfield).
+    Semua komponen dibuat manual.
+    ==========================================================================
+--]]
+
+-- [FIX 1] Dapatkan PlayerGui, ini cara yang benar untuk Studio
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- [BARU] Catat waktu script dimulai
+local scriptStartTime = tick()
+
+-- Hancurkan UI lama jika ada
+-- [FIX 2] Gunakan variabel PlayerGui
+if PlayerGui:FindFirstChild("MengHubScreenGui") then
+	PlayerGui.MengHubScreenGui:Destroy()
+end
+
+-- ==========================================================================
+-- SETUP UTAMA
+-- ==========================================================================
+local MengHubScreenGui = Instance.new("ScreenGui")
+MengHubScreenGui.Name = "MengHubScreenGui"
+-- [FIX 3] Gunakan variabel PlayerGui
+MengHubScreenGui.Parent = PlayerGui
+-- MengHubScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global  -- [FIX] Hapus untuk menghindari peringatan
+MengHubScreenGui.ResetOnSpawn = false
+
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+-- =Settings
+local Colors = {
+	Background = Color3.fromRGB(35, 35, 45),       -- Latar belakang window
+	Header = Color3.fromRGB(30, 30, 40),         -- Latar belakang header
+	Sidebar = Color3.fromRGB(40, 40, 50),        -- Latar belakang sidebar
+	Content = Color3.fromRGB(45, 45, 55),        -- Latar belakang area konten
+	Text = Color3.fromRGB(255, 255, 255),    -- Teks putih
+	TextSecondary = Color3.fromRGB(180, 180, 180), -- Teks abu-abu
+	Accent = Color3.fromRGB(80, 200, 120),       -- Hijau/Biro (dari toggle)
+	Button = Color3.fromRGB(60, 60, 70),         -- Tombol
+	ToggleOff = Color3.fromRGB(80, 80, 90),
+	ButtonHover = Color3.fromRGB(70, 70, 80),
+
+	-- [BARU] Warna-warna tambahan untuk aksen dan emoji
+	AccentBright = Color3.fromRGB(100, 220, 140), -- Hijau lebih cerah
+	Warning = Color3.fromRGB(255, 165, 0),        -- Oranye untuk peringatan/penting
+	Info = Color3.fromRGB(70, 130, 180),          -- Biru untuk info
+	CloseButton = Color3.fromRGB(231, 76, 60),     -- Merah untuk tombol close
+}
+
+-- ==========================================================================
+-- FRAMEWORK WINDOW
+-- ==========================================================================
+
+-- Window Utama
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = MengHubScreenGui
+MainFrame.Size = UDim2.new(0, 550, 0, 400) -- Ukuran bisa disesuaikan
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -200) -- Tengah layar
+MainFrame.BackgroundColor3 = Colors.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = false -- Penting untuk dropdown
+MainFrame.ZIndex = 2
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+
+-- Header (untuk judul dan drag)
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Parent = MainFrame
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundColor3 = Colors.Header
+Header.BorderSizePixel = 0
+Header.ZIndex = 3
+local HeaderCorner = Instance.new("UICorner", Header)
+HeaderCorner.CornerRadius = UDim.new(0, 8)
+-- Trik agar corner hanya di atas
+local HeaderCornerBottom = Instance.new("Frame", Header)
+HeaderCornerBottom.Size = UDim2.new(1, 0, 0, 10)
+HeaderCornerBottom.Position = UDim2.new(0, 0, 1, -10)
+HeaderCornerBottom.BackgroundColor3 = Colors.Header
+HeaderCornerBottom.BorderSizePixel = 0
+HeaderCornerBottom.ZIndex = 3
+
+-- Judul
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = Header
+TitleLabel.Size = UDim2.new(1, -80, 1, 0) -- [EDIT] Kurangi ukuran biar ada ruang buat tombol
+TitleLabel.Position = UDim2.new(0, 20, 0, 0)
+TitleLabel.BackgroundColor3 = Colors.Header
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "🎣 MengHub - Fish It v1.0" -- [EDIT] Kembalikan emoji
+TitleLabel.TextColor3 = Colors.AccentBright -- [EDIT] Warna lebih cerah
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.TextSize = 18
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.ZIndex = 4
+
+-- [BARU] Tombol Close
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = Header
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0.5, -15) -- Posisi di kanan
+CloseButton.BackgroundColor3 = Colors.CloseButton
+CloseButton.Text = "X" -- Ikon close
+CloseButton.TextColor3 = Colors.Text
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.TextSize = 16
+CloseButton.ZIndex = 4
+Instance.new("UICorner", CloseButton).CornerRadius = UDim.new(0, 6)
+CloseButton.MouseButton1Click:Connect(function()
+	if MengHubScreenGui then  -- [FIX] Tambahkan pengecekan
+		MengHubScreenGui:Destroy()
+	end
+end)
+
+-- [BARU] Tombol Minimize/Maximize
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Parent = Header
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -70, 0.5, -15) -- Posisi di sebelah kiri close
+MinimizeButton.BackgroundColor3 = Colors.Button
+MinimizeButton.Text = "−" -- Ikon minimize
+MinimizeButton.TextColor3 = Colors.Text
+MinimizeButton.Font = Enum.Font.SourceSansBold
+MinimizeButton.TextSize = 20
+MinimizeButton.ZIndex = 4
+Instance.new("UICorner", MinimizeButton).CornerRadius = UDim.new(0, 6)
+
+local isMinimized = false
+local originalSize = MainFrame.Size -- Simpan ukuran asli
+
+MinimizeButton.MouseButton1Click:Connect(function()
+	if not MainFrame then return end  -- [FIX] Tambahkan pengecekan
+	isMinimized = not isMinimized
+	if isMinimized then
+		-- Minimize: Sembunyikan Container, shrink MainFrame
+		Container.Visible = false
+		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 550, 0, 40)}):Play()
+		MinimizeButton.Text = "+" -- Ikon maximize
+	else
+		-- Maximize: Tampilkan Container, kembalikan ukuran
+		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = originalSize}):Play()
+		wait(0.3) -- Tunggu animasi selesai
+		Container.Visible = true
+		MinimizeButton.Text = "−"
+	end
+end)
+
+-- Container untuk Sidebar dan Konten
+local Container = Instance.new("Frame")
+Container.Name = "Container"
+Container.Parent = MainFrame
+Container.Size = UDim2.new(1, 0, 1, -40)
+Container.Position = UDim2.new(0, 0, 0, 40)
+Container.BackgroundTransparency = 1
+Container.ZIndex = 2  -- [PERBAIKAN ZINDEX]
+
+-- Content Area (Menu Kanan)
+local ContentArea = Instance.new("Frame")
+ContentArea.Name = "ContentArea"
+ContentArea.Parent = Container
+ContentArea.Size = UDim2.new(1, -150, 1, 0)
+ContentArea.Position = UDim2.new(0, 150, 0, 0)
+ContentArea.BackgroundColor3 = Colors.Content
+ContentArea.BackgroundTransparency = 0 -- Kita buat 0 biar kelihatan
+ContentArea.ClipsDescendants = true 
+ContentArea.ZIndex = 3  -- [PERBAIKAN ZINDEX]
+
+-- Sidebar (Menu Kiri)
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Parent = Container
+Sidebar.Size = UDim2.new(0, 150, 1, 0)
+Sidebar.BackgroundColor3 = Colors.Sidebar
+Sidebar.BorderSizePixel = 0
+Sidebar.ZIndex = 3  -- [PERBAIKAN ZINDEX]
+
+-- [FIX 4] Gunakan UIPadding untuk spasi, ini cara yang benar
+local SidebarPadding = Instance.new("UIPadding", Sidebar)
+SidebarPadding.PaddingTop = UDim.new(0, 10)
+SidebarPadding.PaddingLeft = UDim.new(0, 10)
+SidebarPadding.PaddingRight = UDim.new(0, 10)
+
+local SidebarLayout = Instance.new("UIListLayout", Sidebar)
+SidebarLayout.Padding = UDim.new(0, 5)
+SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+-- [FIX 5] Hapus properti biang kerok
+-- SidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center 
+
+-- ==========================================================================
+-- FUNGSI DRAGGING (Geser Window)
+-- ==========================================================================
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+Header.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = MainFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+Header.InputChanged:Connect(function(input)
+	if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
+		local delta = input.Position - dragStart
+		MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+-- ==========================================================================
+-- SISTEM TAB (Sederhana)
+-- ==========================================================================
+local Tabs = {}
+local CurrentTab = nil
+local ActiveDropdown = nil -- [BARU] Untuk melacak dropdown yang aktif
+
+-- [EDIT] Tutup dropdown aktif jika ganti tab
+local function SwitchTab(TabName)
+	if ActiveDropdown then
+		ActiveDropdown.OptionsFrame.Visible = false
+		ActiveDropdown.Arrow.Text = "▼"
+		ActiveDropdown = nil
+	end
+
+	if CurrentTab then
+		CurrentTab.ContentFrame.Visible = false
+		CurrentTab.Button.BackgroundColor3 = Colors.Sidebar
+		CurrentTab.Button.TextColor3 = Colors.Text -- [EDIT] Reset warna teks
+	end
+
+	local Tab = Tabs[TabName]
+	if Tab then
+		Tab.ContentFrame.Visible = true
+		Tab.Button.BackgroundColor3 = Colors.Content -- Warna aktif
+		Tab.Button.TextColor3 = Colors.AccentBright -- [EDIT] Warna teks aktif
+		CurrentTab = Tab
+	end
+end
+
+local function CreateTab(Name, IconEmoji) -- [EDIT] Tambah parameter IconEmoji
+	local TabContent = Instance.new("ScrollingFrame")
+	TabContent.Name = Name .. "Content"
+	TabContent.Parent = ContentArea
+	TabContent.Size = UDim2.new(1, 0, 1, 0)
+	TabContent.BackgroundTransparency = 1
+	TabContent.BorderSizePixel = 0
+	TabContent.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+	TabContent.ScrollBarThickness = 6
+	TabContent.Visible = false
+	TabContent.ZIndex = 4  -- [PERBAIKAN ZINDEX]
+
+	local ContentLayout = Instance.new("UIListLayout", TabContent)
+	ContentLayout.Padding = UDim.new(0, 10)
+	ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	-- [FIX 5] Hapus properti biang kerok
+	-- ContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	-- [FIX 4] Gunakan UIPadding untuk spasi
+	local ContentPadding = Instance.new("UIPadding", TabContent)
+	ContentPadding.PaddingTop = UDim.new(0, 10)
+	ContentPadding.PaddingLeft = UDim.new(0, 10)
+	ContentPadding.PaddingRight = UDim.new(0, 10)
+
+	local TabButton = Instance.new("TextButton")
+	TabButton.Name = Name .. "Button"
+	TabButton.Parent = Sidebar
+	TabButton.Size = UDim2.new(1, 0, 0, 35) -- [FIX 6] Ukuran 100% dari parent (yang sudah dipadding)
+	TabButton.BackgroundColor3 = Colors.Sidebar
+	TabButton.Text = (IconEmoji and IconEmoji .. " " or "") .. Name -- [EDIT] Tambah emoji
+	TabButton.TextColor3 = Colors.Text
+	TabButton.Font = Enum.Font.SourceSansBold
+	TabButton.TextSize = 16
+	TabButton.BorderSizePixel = 0
+	TabButton.ZIndex = 4  -- [PERBAIKAN ZINDEX]
+	Instance.new("UICorner", TabButton).CornerRadius = UDim.new(0, 6)
+
+	-- [BARU] Efek hover untuk tombol sidebar
+	TabButton.MouseEnter:Connect(function()
+		if not CurrentTab or TabButton ~= CurrentTab.Button then -- Hanya jika tidak aktif
+			TabButton.BackgroundColor3 = Colors.ButtonHover
+		end
+	end)
+	TabButton.MouseLeave:Connect(function()
+		if not CurrentTab or TabButton ~= CurrentTab.Button then -- Hanya jika tidak aktif
+			TabButton.BackgroundColor3 = Colors.Sidebar
+		end
+	end)
+
+	TabButton.MouseButton1Click:Connect(function()
+		SwitchTab(Name)
+	end)
+
+	Tabs[Name] = {
+		Button = TabButton,
+		ContentFrame = TabContent,
+		Name = Name -- [BARU] Simpan nama tab untuk pengecekan
+	}
+
+	return TabContent
+end
+
+-- ==========================================================================
+-- FUNGSI KOMPONEN CUSTOM
+-- ==========================================================================
+
+-- Label Sederhana
+local function CreateLabel(Parent, Text, LabelColor) -- [EDIT] Tambah parameter warna
+	local Label = Instance.new("TextLabel")
+	Label.Parent = Parent
+	Label.Size = UDim2.new(1, 0, 0, 20) -- [FIX 6] Ukuran 100% dari parent (yang sudah dipadding)
+	Label.BackgroundTransparency = 1
+	Label.Text = Text
+	Label.TextColor3 = LabelColor or Colors.TextSecondary -- [EDIT] Gunakan warna yang diberikan atau default
+	Label.Font = Enum.Font.SourceSans
+	Label.TextSize = 14
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.ZIndex = 5  -- [PERBAIKAN ZINDEX]
+	return Label
+end
+
+-- Tombol Custom
+local function CreateButton(Parent, Text, Callback, ButtonColor) -- [EDIT] Tambah parameter warna
+	local Button = Instance.new("TextButton")
+	Button.Parent = Parent
+	Button.Size = UDim2.new(1, 0, 0, 35) -- [FIX 6] Ukuran 100% dari parent (yang sudah dipadding)
+	Button.BackgroundColor3 = ButtonColor or Colors.Button -- [EDIT] Gunakan warna yang diberikan atau default
+	Button.Text = Text
+	Button.TextColor3 = Colors.Text
+	Button.Font = Enum.Font.SourceSansBold
+	Button.TextSize = 16
+	Button.ZIndex = 5  -- [PERBAIKAN ZINDEX]
+	Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 6)
+
+	Button.MouseButton1Click:Connect(Callback)
+
+	-- [BARU] Efek hover untuk tombol
+	Button.MouseEnter:Connect(function() Button.BackgroundColor3 = Colors.ButtonHover end)
+	Button.MouseLeave:Connect(function() Button.BackgroundColor3 = ButtonColor or Colors.Button end)
+
+	return Button
+end
+
+-- Toggle Custom (Sederhana)
+local function CreateToggle(Parent, Text, Callback)
+	local ToggleFrame = Instance.new("Frame")
+	ToggleFrame.Parent = Parent
+	ToggleFrame.Size = UDim2.new(1, 0, 0, 40) -- [FIX 6] Ukuran 100% dari parent (yang sudah dipadding)
+	ToggleFrame.BackgroundTransparency = 1
+	ToggleFrame.ZIndex = 5  -- [PERBAIKAN ZINDEX]
+
+	local Label = Instance.new("TextLabel", ToggleFrame)
+	Label.Size = UDim2.new(0.7, 0, 1, 0)
+	Label.BackgroundTransparency = 1
+	Label.Text = Text
+	Label.TextColor3 = Colors.Text
+	Label.Font = Enum.Font.SourceSansBold
+	Label.TextSize = 16
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.ZIndex = 6  -- [PERBAIKAN ZINDEX]
+
+	local SwitchBg = Instance.new("Frame", ToggleFrame)
+	SwitchBg.Size = UDim2.new(0, 50, 0, 25)
+	SwitchBg.Position = UDim2.new(1, -50, 0.5, -12.5) -- [FIX 7] Posisikan switch ke kanan
+	SwitchBg.BackgroundColor3 = Colors.ToggleOff
+	SwitchBg.ZIndex = 6  -- [PERBAIKAN ZINDEX]
+	Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
+
+	SwitchThumb = Instance.new("Frame", SwitchBg)
+	SwitchThumb.Size = UDim2.new(0, 21, 0, 21)
+	SwitchThumb.Position = UDim2.new(0, 2, 0.5, -10.5)
+	SwitchThumb.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+	SwitchThumb.ZIndex = 7  -- [PERBAIKAN ZINDEX]
+	Instance.new("UICorner", SwitchThumb).CornerRadius = UDim.new(1, 0)
+
+	local Button = Instance.new("TextButton", ToggleFrame)
+	Button.Size = UDim2.new(1, 0, 1, 0)
+	Button.BackgroundTransparency = 1
+	Button.Text = ""
+	Button.ZIndex = 6  -- [PERBAIKAN ZINDEX]
+
+	local IsOn = false
+	local Debounce = false
+
+	local TweenOn = TweenService:Create(SwitchThumb, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = UDim2.new(1, -23, 0.5, -10.5)})
+	local TweenOff = TweenService:Create(SwitchThumb, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 2, 0.5, -10.5)})
+
+	Button.MouseButton1Click:Connect(function()
+		if Debounce then return end
+		Debounce = true
+
+		IsOn = not IsOn
+
+		if IsOn then
+			TweenOn:Play()
+			SwitchBg.BackgroundColor3 = Colors.Accent
+		else
+			TweenOff:Play()
+			SwitchBg.BackgroundColor3 = Colors.ToggleOff
+		end
+
+		if Callback then
+			Callback(IsOn)
+		end
+
+		wait(0.2)  -- [FIX] Ganti dari task.wait
+		Debounce = false
+	end)
+
+	return ToggleFrame
+end
+
+-- Dropdown Custom
+local function CreateDropdown(Parent, LabelText, Options, DefaultValue, Callback)
+	local DropdownFrame = Instance.new("Frame")
+	DropdownFrame.Parent = Parent
+	DropdownFrame.Size = UDim2.new(1, 0, 0, 65) -- Tinggi total (Label + Tombol)
+	DropdownFrame.BackgroundTransparency = 1
+	DropdownFrame.ZIndex = 5
+
+	CreateLabel(DropdownFrame, LabelText) -- Gunakan fungsi label kita
+
+	local DropdownButton = Instance.new("TextButton")
+	DropdownButton.Name = "DropdownButton"
+	DropdownButton.Parent = DropdownFrame
+	DropdownButton.Size = UDim2.new(1, 0, 0, 35) -- Tinggi tombol
+	DropdownButton.Position = UDim2.new(0, 0, 0, 25) -- Posisi di bawah label
+	DropdownButton.BackgroundColor3 = Colors.Button
+	DropdownButton.Text = "  " .. DefaultValue -- Teks awal
+	DropdownButton.TextColor3 = Colors.Text
+	DropdownButton.Font = Enum.Font.SourceSans
+	DropdownButton.TextSize = 16
+	DropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+	DropdownButton.ZIndex = 6
+	Instance.new("UICorner", DropdownButton).CornerRadius = UDim.new(0, 6)
+
+	local Arrow = Instance.new("TextLabel", DropdownButton)
+	Arrow.Size = UDim2.new(0, 20, 1, 0)
+	Arrow.Position = UDim2.new(1, -30, 0, 0)
+	Arrow.BackgroundTransparency = 1
+	Arrow.Text = "▼"
+	Arrow.TextColor3 = Colors.TextSecondary
+	Arrow.Font = Enum.Font.SourceSans
+	Arrow.TextSize = 16
+	Arrow.ZIndex = 7
+
+	local OptionsFrame = Instance.new("ScrollingFrame")
+	OptionsFrame.Name = "OptionsFrame"
+	OptionsFrame.Parent = MainFrame -- Parent ke MainFrame agar bisa 'melayang'
+	OptionsFrame.BackgroundColor3 = Colors.Header
+	OptionsFrame.BorderSizePixel = 0
+	OptionsFrame.ClipsDescendants = true
+	OptionsFrame.Visible = false
+	OptionsFrame.ZIndex = 10 -- Paling depan!
+	Instance.new("UICorner", OptionsFrame).CornerRadius = UDim.new(0, 6)
+	local OptionsLayout = Instance.new("UIListLayout", OptionsFrame)
+	OptionsLayout.Padding = UDim.new(0, 2)
+
+	local CurrentValue = DefaultValue
+	local DropdownData = {OptionsFrame = OptionsFrame, Arrow = Arrow} -- Data untuk pelacakan
+
+	for _, OptionName in ipairs(Options) do
+		local OptionButton = Instance.new("TextButton")
+		OptionButton.Parent = OptionsFrame
+		OptionButton.Size = UDim2.new(1, 0, 0, 30)
+		OptionButton.BackgroundColor3 = Colors.Header
+		OptionButton.Text = "  " .. OptionName
+		OptionButton.TextColor3 = Colors.Text
+		OptionButton.Font = Enum.Font.SourceSans
+		OptionButton.TextSize = 14
+		OptionButton.TextXAlignment = Enum.TextXAlignment.Left
+		OptionButton.ZIndex = 11
+
+		OptionButton.MouseButton1Click:Connect(function()
+			CurrentValue = OptionName
+			DropdownButton.Text = "  " .. CurrentValue
+			OptionsFrame.Visible = false
+			Arrow.Text = "▼"
+			ActiveDropdown = nil
+			if Callback then
+				Callback(CurrentValue)
+			end
+		end)
+
+		OptionButton.MouseEnter:Connect(function() OptionButton.BackgroundColor3 = Colors.Content end)
+		OptionButton.MouseLeave:Connect(function() OptionButton.BackgroundColor3 = Colors.Header end)
+	end
+
+	DropdownButton.MouseButton1Click:Connect(function()
+		-- [EDIT] Tutup dropdown lain yang mungkin terbuka
+		if ActiveDropdown and ActiveDropdown ~= DropdownData then
+			ActiveDropdown.OptionsFrame.Visible = false
+			ActiveDropdown.Arrow.Text = "▼"
+		end
+
+		local isVisible = not OptionsFrame.Visible
+		OptionsFrame.Visible = isVisible
+
+		if isVisible then
+			-- [FIX 2 - LOKASI & UKURAN DROPDOWN]
+			local mainFramePos = MainFrame.AbsolutePosition
+			local btnPos = DropdownButton.AbsolutePosition
+			local btnSize = DropdownButton.AbsoluteSize
+
+			-- Hitung tinggi total konten
+			local totalHeight = (#Options * 30) + (#Options * 2) -- (Tinggi Tombol * Jumlah) + (Padding * Jumlah)
+
+			-- Hitung Posisi X (relatif ke MainFrame)
+			local relativeX = btnPos.X - mainFramePos.X
+			-- Hitung Posisi Y (relatif ke MainFrame)
+			local relativeY = (btnPos.Y + btnSize.Y + 5) - mainFramePos.Y
+
+			-- Set Posisi
+			OptionsFrame.Position = UDim2.new(0, relativeX, 0, relativeY)  -- [FIX] Ganti dari UDim2.fromOffset
+
+			-- Set Ukuran (visible window)
+			OptionsFrame.Size = UDim2.new(0, btnSize.X, 0, math.min(totalHeight, 130)) -- Gunakan btnSize.X
+
+			-- Set Ukuran Konten (scrollable)
+			OptionsFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight) -- [FIX 3 - INI BIANG KEROK SCROLL]
+
+			Arrow.Text = "▲"
+			ActiveDropdown = DropdownData
+		else
+			Arrow.Text = "▼"
+			ActiveDropdown = nil
+		end
+	end)
+
+	return DropdownFrame
+end
+
+-- Slider Custom
+local function CreateSlider(Parent, LabelText, Min, Max, Default, Callback)
+	local SliderFrame = Instance.new("Frame")
+	SliderFrame.Parent = Parent
+	SliderFrame.Size = UDim2.new(1, 0, 0, 60) -- Tinggi total
+	SliderFrame.BackgroundTransparency = 1
+	SliderFrame.ZIndex = 5
+
+	local Label = CreateLabel(SliderFrame, LabelText)
+
+	local ValueLabel = Instance.new("TextLabel", SliderFrame)
+	ValueLabel.Size = UDim2.new(0.3, 0, 0, 20)
+	ValueLabel.Position = UDim2.new(0.7, 0, 0, 0)
+	ValueLabel.BackgroundTransparency = 1
+	ValueLabel.Text = Default
+	ValueLabel.TextColor3 = Colors.TextSecondary
+	ValueLabel.Font = Enum.Font.SourceSansBold
+	ValueLabel.TextSize = 14
+	ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+	ValueLabel.ZIndex = 6
+
+	local BarBg = Instance.new("Frame", SliderFrame)
+	BarBg.Size = UDim2.new(1, 0, 0, 10)
+	BarBg.Position = UDim2.new(0, 0, 0, 35)
+	BarBg.BackgroundColor3 = Colors.Button
+	BarBg.ZIndex = 6
+	Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
+
+	local BarProgress = Instance.new("Frame", BarBg)
+	BarProgress.BackgroundColor3 = Colors.Accent
+	BarProgress.ZIndex = 7
+	Instance.new("UICorner", BarProgress).CornerRadius = UDim.new(1, 0)
+
+	local Thumb = Instance.new("Frame", BarBg)
+	Thumb.Size = UDim2.new(0, 20, 0, 20)
+	Thumb.Position = UDim2.new(0, -10, 0.5, -10)
+	Thumb.BackgroundColor3 = Colors.Text
+	Thumb.ZIndex = 8
+	Instance.new("UICorner", Thumb).CornerRadius = UDim.new(1, 0) -- [FIX] Target Thumb, bukan BarBg
+
+	local CurrentValue = Default
+	local isDragging = false
+
+	local function SetValue(NewValue)
+		CurrentValue = math.clamp(NewValue, Min, Max)
+		ValueLabel.Text = string.format("%.2f", CurrentValue)
+
+		local Percent = (CurrentValue - Min) / (Max - Min)
+		Percent = math.clamp(Percent, 0, 1)
+
+		BarProgress.Size = UDim2.new(Percent, 0, 1, 0)
+		Thumb.Position = UDim2.new(Percent, -10, 0.5, -10)
+
+		if Callback then
+			Callback(CurrentValue)
+		end
+	end
+
+	local function UpdateFromInput(input)
+		local BarSize = BarBg.AbsoluteSize
+		local BarPos = BarBg.AbsolutePosition
+
+		local Percent = (input.Position.X - BarPos.X) / BarSize.X
+		Percent = math.clamp(Percent, 0, 1)
+
+		local NewValue = Min + (Max - Min) * Percent
+		SetValue(NewValue)
+	end
+
+	BarBg.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isDragging = true
+			UpdateFromInput(input)
+		end
+	end)
+
+	BarBg.InputChanged:Connect(function(input)
+		if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and isDragging then
+			UpdateFromInput(input)
+		end
+	end)
+
+	BarBg.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isDragging = false
+		end
+	end)
+
+	SetValue(Default)
+	return SliderFrame
+end
+
+-- Input Field Custom
+local function CreateInput(Parent, LabelText, DefaultValue, IsNumber, Callback)
+	local InputFrame = Instance.new("Frame")
+	InputFrame.Parent = Parent
+	InputFrame.Size = UDim2.new(1, 0, 0, 65) -- Tinggi total
+	InputFrame.BackgroundTransparency = 1
+	InputFrame.ZIndex = 5
+
+	CreateLabel(InputFrame, LabelText) -- Label judul
+
+	local TextBox = Instance.new("TextBox")
+	TextBox.Parent = InputFrame
+	TextBox.Size = UDim2.new(1, 0, 0, 35)
+	TextBox.Position = UDim2.new(0, 0, 0, 25)
+	TextBox.BackgroundColor3 = Colors.Button
+	TextBox.TextColor3 = Colors.Text
+	TextBox.Text = DefaultValue
+	TextBox.Font = Enum.Font.SourceSans
+	TextBox.TextSize = 16
+	TextBox.TextXAlignment = Enum.TextXAlignment.Left
+	TextBox.ClearTextOnFocus = false
+	TextBox.ZIndex = 6
+	Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 6)
+
+	local Padding = Instance.new("UIPadding", TextBox)
+	Padding.PaddingLeft = UDim.new(0, 10)
+	Padding.PaddingRight = UDim.new(0, 10)
+
+	local CurrentValue = DefaultValue
+
+	TextBox.FocusLost:Connect(function(enterPressed)
+		local Text = TextBox.Text
+
+		if IsNumber then
+			-- Paksa jadi angka, jika gagal, balik ke nilai lama
+			local Num = tonumber(Text)
+			if Num then
+				CurrentValue = Num
+				TextBox.Text = CurrentValue -- Update teks (jika ada spasi dll)
+			else
+				TextBox.Text = CurrentValue -- Balikkan ke nilai lama
+			end
+		else
+			CurrentValue = Text
+		end
+
+		if Callback then
+			Callback(CurrentValue)
+		end
+	end)
+
+	return InputFrame
+end
+
+-- [BARU] Fungsi Notifikasi Toast
+local function CreateNotification(Text, Duration)
+	Duration = Duration or 3 -- Default 3 detik
+
+	local NotificationFrame = Instance.new("Frame")
+	NotificationFrame.Parent = MengHubScreenGui
+	NotificationFrame.Size = UDim2.new(0, 300, 0, 50)
+	NotificationFrame.Position = UDim2.new(0.5, -150, 0, -60) -- Mulai di atas layar
+	NotificationFrame.BackgroundColor3 = Colors.Header
+	NotificationFrame.ZIndex = 15
+	Instance.new("UICorner", NotificationFrame).CornerRadius = UDim.new(0, 8)
+
+	local NotificationLabel = Instance.new("TextLabel")
+	NotificationLabel.Parent = NotificationFrame
+	NotificationLabel.Size = UDim2.new(1, 0, 1, 0)
+	NotificationLabel.BackgroundTransparency = 1
+	NotificationLabel.Text = Text
+	NotificationLabel.TextColor3 = Colors.Text
+	NotificationLabel.Font = Enum.Font.SourceSansBold
+	NotificationLabel.TextSize = 16
+	NotificationLabel.TextXAlignment = Enum.TextXAlignment.Center
+	NotificationLabel.ZIndex = 16
+
+	-- Animasi slide down
+	TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Position = UDim2.new(0.5, -150, 0, 20)}):Play()
+
+	-- Auto fade out dan destroy
+	delay(Duration, function()  -- [FIX] Ganti dari task.delay
+		TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Position = UDim2.new(0.5, -150, 0, -60)}):Play()
+		wait(0.5)
+		NotificationFrame:Destroy()
+	end)
+end
+
+-- [BARU] Fungsi Animasi Counter (Pindah ke sini)
+local function AnimateCounter(label, from, to, prefix)
+	if from == to then return end
+	local duration = 0.5
+	local startTime = tick()
+	while tick() - startTime < duration do
+		local t = (tick() - startTime) / duration
+		local ease = t * t * (3 - 2 * t)  -- [FIX] Manual quad out easing, ganti dari TweenService:GetValue
+		local current = from + (to - from) * ease
+		label.Text = prefix .. math.floor(current)
+		wait()  -- [FIX] Ganti dari task.wait
+	end
+	label.Text = prefix .. to
+end
+
+-- [BARU] Fungsi Update Player Stats (Pindah ke sini)
+local lastFishCount = 0
+local lastCoins = 0
+local lastBait = 0
+local lastLevel = 0
+
+-- Variabel untuk menampung label (didefinisikan nanti)
+local FishLabel, CoinsLabel, BaitLabel, LevelLabel, LevelBarProgress
+
+local function UpdatePlayerStats()
+	-- Ambil data dari game (sesuaikan dengan game Fish It)
+	-- Contoh: Asumsikan ada leaderstats atau backpack
+	local fishCount = 0
+	local coins = 0
+	local bait = 0
+	local level = 0
+
+	-- Coba ambil dari leaderstats (jika ada)
+	local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+	if leaderstats then
+		local fishStat = leaderstats:FindFirstChild("Fish") or leaderstats:FindFirstChild("CaughtFish")
+		if fishStat then fishCount = fishStat.Value end
+		local coinsStat = leaderstats:FindFirstChild("Coins") or leaderstats:FindFirstChild("Money")
+		if coinsStat then coins = coinsStat.Value end
+		local levelStat = leaderstats:FindFirstChild("Level")
+		if levelStat then level = levelStat.Value end
+	end
+
+	-- Ambil bait dari backpack (jika ada tool bait)
+	-- [FIX] Cek Backpack dan StarterGear
+	local function checkInventory(container)
+		if not container then return 0 end
+		local baitCount = 0
+		for _, tool in ipairs(container:GetChildren()) do
+			if tool:IsA("Tool") and tool.Name:lower():find("bait") then
+				baitCount = baitCount + 1 -- Hitung jumlah tool bait
+			end
+		end
+		return baitCount
+	end
+	bait = checkInventory(LocalPlayer.Backpack) + checkInventory(LocalPlayer.StarterGear)
+
+	-- Update label dengan animasi counter (jika label sudah dibuat)
+	if FishLabel then
+		AnimateCounter(FishLabel, lastFishCount, fishCount, "🐟 Fish Tertangkap: ")
+	end
+	if CoinsLabel then
+		AnimateCounter(CoinsLabel, lastCoins, coins, "💰 Coins: ")
+	end
+	if BaitLabel then
+		AnimateCounter(BaitLabel, lastBait, bait, "🪝 Bait: ")
+	end
+	if LevelLabel then
+		AnimateCounter(LevelLabel, lastLevel, level, "⭐ Level: ")
+	end
+
+	-- Progress Bar Level: Asumsikan max level 100, fill berdasarkan level
+	
+	if LevelBarProgress then
+		local levelPercent = math.clamp(level / 100, 0, 1)
+		TweenService:Create(LevelBarProgress, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Size = UDim2.new(levelPercent, 0, 1, 0)}):Play()
+	end
+
+	-- Simpan nilai terakhir
+	lastFishCount = fishCount
+	lastCoins = coins
+	lastBait = bait
+	lastLevel = level
+end
+
+-- [BARU] Fungsi Update Info Akun (Pindah ke sini)
+local AccountAgeLabel, AgeBarProgress, PlayTimeLabel, PlayBarProgress
+
+local function UpdateAccountInfo()
+	-- Usia Akun: Hitung dari AccountAge (dalam hari)
+	local accountAgeDays = LocalPlayer.AccountAge
+	local years = math.floor(accountAgeDays / 365)
+	local months = math.floor((accountAgeDays % 365) / 30)
+	local days = accountAgeDays % 30
+	local ageText = "⏳ Usia Akun Roblox: " .. years .. " th, " .. months .. " bln, " .. days .. " hr"
+
+	if AccountAgeLabel then
+		AccountAgeLabel.Text = ageText
+	end
+
+	-- Progress Bar Usia: Fill berdasarkan tahun (max 10 tahun)
+	if AgeBarProgress then
+		local agePercent = math.clamp(years / 10, 0, 1)
+		TweenService:Create(AgeBarProgress, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Size = UDim2.new(agePercent, 0, 1, 0)}):Play()
+	end
+
+	-- Waktu Bermain: Estimasi sejak join game saat ini (dalam detik, konversi ke jam/menit)
+	local joinTime = tick() - scriptStartTime -- [FIX] Gunakan scriptStartTime
+	local hours = math.floor(joinTime / 3600)
+	local minutes = math.floor((joinTime % 3600) / 60)
+	local playText = "🎣 Waktu Bermain (Sesi Ini): " .. hours .. " jam, " .. minutes .. " mnt"
+
+	if PlayTimeLabel then
+		PlayTimeLabel.Text = playText
+	end
+
+	-- Progress Bar Waktu: Fill berdasarkan jam (max 24 jam)
+	if PlayBarProgress then
+		local playPercent = math.clamp(hours / 24, 0, 1)
+		TweenService:Create(PlayBarProgress, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Size = UDim2.new(playPercent, 0, 1, 0)}):Play()
+	end
+end
+
+-- ==========================================================================
+-- MEMBUAT TAB DAN MENGISI KONTEN
+-- ==========================================================================
+
+-- Tab 1: Auto Fishing
+local AutoFishingContent = CreateTab("Auto Fishing", "🎣") -- [EDIT] Tambah emoji
+CreateLabel(AutoFishingContent, "Pengaturan Auto Fishing")
+
+CreateDropdown(AutoFishingContent, "Select Cast", {"Random", "Perfect", "Amazing"}, "Random", function(SelectedCast)
+	print("Cast diubah ke:", SelectedCast)
+end)
+
+CreateDropdown(AutoFishingContent, "Fishing Animation", {"Normal", "Skip"}, "Normal", function(SelectedAnim)
+	print("Animasi diubah ke:", SelectedAnim)
+end)
+
+CreateSlider(AutoFishingContent, "Auto Fishing Delay", 0.0, 5.0, 0.5, function(Value)
+	print("Auto Fishing Delay:", Value)
+end)
+
+CreateSlider(AutoFishingContent, "Fishing Complete Delay", 0.0, 5.0, 1.0, function(Value)
+	print("Fishing Complete Delay:", Value)
+end)
+
+CreateToggle(AutoFishingContent, "Auto Fishing", function(Value)
+	print("Auto Fishing diaktifkan:", Value)
+	CreateNotification("Auto Fishing " .. (Value and "Started!" or "Stopped!")) -- [BARU] Notifikasi
+end)
+CreateToggle(AutoFishingContent, "Auto Recast / Anti-Stuck", function(Value)
+	print("Auto Recast diaktifkan:", Value)
+	CreateNotification("Auto Recast " .. (Value and "Enabled!" or "Disabled!")) -- [BARU] Notifikasi
+end)
+CreateButton(AutoFishingContent, "Respawn Now", function()
+	print("Respawn...")
+	CreateNotification("Respawning...") -- [BARU] Notifikasi
+end)
+
+-- Tab 2: Auto Sell
+local AutoSellContent = CreateTab("Auto Sell", "💰") -- [EDIT] Tambah emoji
+CreateLabel(AutoSellContent, "Pengaturan Auto Sell")
+CreateButton(AutoSellContent, "Sell All Now", function()
+	print("Menjual semua...")
+	CreateNotification("Selling all fish!") -- [BARU] Notifikasi
+end, Colors.Accent) -- [EDIT] Tombol Sell diberi warna aksen
+CreateToggle(AutoSellContent, "Auto Sell Caught Fish", function(Value)
+	print("Auto Sell:", Value)
+	CreateNotification("Auto Sell " .. (Value and "Activated!" or "Deactivated!")) -- [BARU] Notifikasi
+end)
+
+CreateInput(AutoSellContent, "Auto Sell Threshold (Default: 30)", "30", true, function(Value)
+	print("Auto Sell Threshold:", Value)
+	CreateNotification("Threshold set to " .. Value) -- [BARU] Notifikasi
+end)
+
+-- Tab 3: Auto Farm
+local AutoFarmContent = CreateTab("Auto Farm", "🚜") -- [EDIT] Tambah emoji
+CreateLabel(AutoFarmContent, "Pengaturan Auto Farm")
+
+local islandOptions = {
+	"Ancient Jungle", "Artifact", "Ancient Temple", "Ancient Underground", 
+	"Coral Reefs", "Crater Island/Kawah", "Esoteric Depth", "Fisherman Island", 
+	"Kohana", "Kohana Volcano", "Lost Shore", "Mount Halloween", 
+	"Sisyphus", "Treasure Room", "Tropical Grove", "Weather Machine", "Winter Fest"
+}
+CreateDropdown(AutoFarmContent, "Select Island(s)", islandOptions, "Fisherman Island", function(Value)
+	print("Pulau dipilih:", Value)
+	CreateNotification("Island set to " .. Value) -- [BARU] Notifikasi
+end)
+
+CreateInput(AutoFarmContent, "Auto Teleport Threshold", "10", true, function(Value)
+	print("Auto Teleport Threshold:", Value)
+	CreateNotification("Teleport Threshold: " .. Value) -- [BARU] Notifikasi
+end)
+
+CreateToggle(AutoFarmContent, "Start Auto Farm", function(Value)
+	print("Auto Farm:", Value)
+	CreateNotification("Auto Farm " .. (Value and "Started!" or "Stopped!")) -- [BARU] Notifikasi
+end)
+
+-- Tab 4: Event
+local EventContent = CreateTab("Event", "🎉") -- [EDIT] Tambah emoji
+CreateLabel(EventContent, "Pengaturan Event") -- [GANTI]
+
+local eventOptions = {
+	"Megalodon Hunt", "Admin Event", "Ghost Worm", "Worm Hunt",
+	"Shark Hunt", "Ghost Shark Hunt", "Shocked", "Blackhole", "Meteor Rain"
+}
+CreateDropdown(EventContent, "Select Event", eventOptions, "Megalodon Hunt", function(Value)
+	print("Event dipilih:", Value)
+	CreateNotification("Event selected: " .. Value) -- [BARU] Notifikasi
+end)
+
+CreateToggle(EventContent, "Auto Teleport Spawnd Event", function(Value)
+	print("Auto Teleport Event:", Value)
+	CreateNotification("Auto Teleport Event " .. (Value and "On!" or "Off!")) -- [BARU] Notifikasi
+end)
+
+-- Tab 5: Player Config
+local PlayerConfigContent = CreateTab("Player Config", "⚙️") -- [EDIT] Tambah emoji
+CreateLabel(PlayerConfigContent, "Pengaturan Player") -- [GANTI]
+
+-- [BARU] Section Real-Time Stats
+CreateLabel(PlayerConfigContent, "Real-Time Stats", Colors.AccentBright) -- [BARU] Judul section
+
+-- Frame untuk Fish Count [BARU]
+local FishFrame = Instance.new("Frame")
+FishFrame.Parent = PlayerConfigContent
+FishFrame.Size = UDim2.new(1, 0, 0, 50)
+FishFrame.BackgroundTransparency = 1
+FishFrame.ZIndex = 5
+
+FishLabel = Instance.new("TextLabel") -- [FIX] Definisikan variabel global
+FishLabel.Parent = FishFrame
+FishLabel.Size = UDim2.new(0.7, 0, 1, 0)
+FishLabel.BackgroundTransparency = 1
+FishLabel.Text = "🐟 Fish Tertangkap: 0"
+FishLabel.TextColor3 = Colors.Text
+FishLabel.Font = Enum.Font.SourceSansBold
+FishLabel.TextSize = 16
+FishLabel.TextXAlignment = Enum.TextXAlignment.Left
+FishLabel.ZIndex = 6
+
+-- Frame untuk Coins [BARU]
+local CoinsFrame = Instance.new("Frame")
+CoinsFrame.Parent = PlayerConfigContent
+CoinsFrame.Size = UDim2.new(1, 0, 0, 50)
+CoinsFrame.BackgroundTransparency = 1
+CoinsFrame.ZIndex = 5
+
+CoinsLabel = Instance.new("TextLabel") -- [FIX] Definisikan variabel global
+CoinsLabel.Parent = CoinsFrame
+CoinsLabel.Size = UDim2.new(0.7, 0, 1, 0)
+CoinsLabel.BackgroundTransparency = 1
+CoinsLabel.Text = "💰 Coins: 0"
+CoinsLabel.TextColor3 = Colors.Info
+CoinsLabel.Font = Enum.Font.SourceSansBold
+CoinsLabel.TextSize = 16
+CoinsLabel.TextXAlignment = Enum.TextXAlignment.Left
+CoinsLabel.ZIndex = 6
+
+-- Frame untuk Bait [BARU]
+local BaitFrame = Instance.new("Frame")
+BaitFrame.Parent = PlayerConfigContent
+BaitFrame.Size = UDim2.new(1, 0, 0, 50)
+BaitFrame.BackgroundTransparency = 1
+BaitFrame.ZIndex = 5
+
+BaitLabel = Instance.new("TextLabel") -- [FIX] Definisikan variabel global
+BaitLabel.Parent = BaitFrame
+BaitLabel.Size = UDim2.new(0.7, 0, 1, 0)
+BaitLabel.BackgroundTransparency = 1
+BaitLabel.Text = "🪝 Bait: 0"
+BaitLabel.TextColor3 = Colors.Warning
+BaitLabel.Font = Enum.Font.SourceSansBold
+BaitLabel.TextSize = 16
+BaitLabel.TextXAlignment = Enum.TextXAlignment.Left
+BaitLabel.ZIndex = 6
+
+-- Frame untuk Level dengan progress bar [BARU]
+local LevelFrame = Instance.new("Frame")
+LevelFrame.Parent = PlayerConfigContent
+LevelFrame.Size = UDim2.new(1, 0, 0, 70)
+LevelFrame.BackgroundTransparency = 1
+LevelFrame.ZIndex = 5
+
+LevelLabel = Instance.new("TextLabel") -- [FIX] Definisikan variabel global
+LevelLabel.Parent = LevelFrame
+LevelLabel.Size = UDim2.new(1, 0, 0, 20)
+LevelLabel.BackgroundTransparency = 1
+LevelLabel.Text = "⭐ Level: 0"
+LevelLabel.TextColor3 = Colors.Accent
+LevelLabel.Font = Enum.Font.SourceSansBold
+LevelLabel.TextSize = 16
+LevelLabel.TextXAlignment = Enum.TextXAlignment.Left
+LevelLabel.ZIndex = 6
+
+-- Progress Bar untuk Level [BARU]
+local LevelBarBg = Instance.new("Frame", LevelFrame)
+LevelBarBg.Size = UDim2.new(1, 0, 0, 10)
+LevelBarBg.Position = UDim2.new(0, 0, 0, 25)
+LevelBarBg.BackgroundColor3 = Colors.Button
+LevelBarBg.ZIndex = 6
+Instance.new("UICorner", LevelBarBg).CornerRadius = UDim.new(1, 0)
+
+LevelBarProgress = Instance.new("Frame", LevelBarBg) -- [FIX] Definisikan variabel global
+LevelBarProgress.BackgroundColor3 = Colors.AccentBright
+LevelBarProgress.ZIndex = 7
+Instance.new("UICorner", LevelBarProgress).CornerRadius = UDim.new(1, 0)
+
+-- Tombol Refresh Stats [BARU]
+local RefreshStatsButton = CreateButton(PlayerConfigContent, "🔄 Refresh Stats", function()
+	UpdatePlayerStats()
+	CreateNotification("Stats Refreshed!") -- [BARU] Notifikasi
+	-- Animasi klik: Pulse effect
+	local originalSize = RefreshStatsButton.Size
+	-- [FIX] Ganti animasi error, kita tween Y-Offsetnya saja
+	local newSize = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, originalSize.Y.Scale, originalSize.Y.Offset * 1.1)
+	TweenService:Create(RefreshStatsButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {Size = newSize}):Play()
+	wait(0.1)
+	TweenService:Create(RefreshStatsButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {Size = originalSize}):Play()
+end, Colors.Info)
+
+-- [LANJUTAN TOGGLE LAINNYA]
+CreateToggle(PlayerConfigContent, "Show Fish Price", function(Value) print("Show Fish Price:", Value) end)
+CreateToggle(PlayerConfigContent, "Floating", function(Value) print("Floating:", Value) end)
+CreateToggle(PlayerConfigContent, "Auto Accept Trade", function(Value) print("Auto Accept Trade:", Value) end)
+CreateToggle(PlayerConfigContent, "Dark/Night Mode", function(Value) print("Dark Mode:", Value) end)
+CreateToggle(PlayerConfigContent, "Anti Lag/Low Texture", function(Value) print("Anti Lag:", Value) end)
+CreateToggle(PlayerConfigContent, "Disable 3D Render", function(Value) print("Disable 3D Render:", Value) end)
+CreateToggle(PlayerConfigContent, "Disable Fish Caught Notification", function(Value) print("Disable Fish Notification:", Value) end)
+CreateToggle(PlayerConfigContent, "Disable Cutscene Animation", function(Value) print("Disable Cutscene:", Value) end)
+CreateToggle(PlayerConfigContent, "Fishing Radar", function(Value) print("Fishing Radar:", Value) end)
+CreateToggle(PlayerConfigContent, "Auto Save & Restore Position", function(Value) print("Auto Save Position:", Value) end)
+CreateToggle(PlayerConfigContent, "Lock Player Position", function(Value) print("Lock Position:", Value) end)
+
+-- Tab 6: Configuration
+local ConfigContent = CreateTab("Configuration", "💾") -- [EDIT] Tambah emoji
+CreateLabel(ConfigContent, "Pengaturan Config") -- [GANTI]
+
+-- [BARU] Tambahkan toggle dan tombol untuk Config
+CreateToggle(ConfigContent, "Auto Load Config", function(Value)
+	print("Auto Load Config:", Value)
+	CreateNotification("Auto Load Config " .. (Value and "Enabled!" or "Disabled!")) -- [BARU] Notifikasi
+end)
+
+CreateButton(ConfigContent, "Save Config", function()
+	print("Menyimpan config...")
+	CreateNotification("Config Saved!") -- [BARU] Notifikasi
+	-- (Di sinilah logika 'writefile' kamu akan ditempatkan)
+end, Colors.Info) -- [EDIT] Tombol Save diberi warna info
+
+CreateButton(ConfigContent, "Load Config", function()
+	print("Memuat config...")
+	CreateNotification("Config Loaded!") -- [BARU] Notifikasi
+	-- (Di sinilah logika 'readfile' atau 'loadstring' kamu akan ditempatkan)
+end, Colors.Info) -- [EDIT] Tombol Load diberi warna info
+
+-- [BARU] Keybind Toggle UI
+local KeybindKey = "F" -- Default keybind
+CreateInput(ConfigContent, "UI Toggle Keybind (e.g., F)", KeybindKey, false, function(Value)
+	KeybindKey = Value:upper() -- Simpan keybind baru
+	CreateNotification("Keybind set to '" .. KeybindKey .. "'") -- [BARU] Notifikasi
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if not gameProcessed and input.KeyCode.Name == KeybindKey then -- [FIX] Perlu .Name
+		if MainFrame then  -- [FIX] Tambahkan pengecekan
+			MainFrame.Visible = not MainFrame.Visible
+			CreateNotification("UI " .. (MainFrame.Visible and "Shown!" or "Hidden!")) -- [BARU] Notifikasi
+		else
+			warn("MainFrame not found! UI toggle failed.")  -- Debug message
+		end
+	end
+end)
+
+-- Tab 7: Account Info [BARU - UPGRADE]
+local AccountInfoContent = CreateTab("Account Info", "📊") -- [BARU] Tab baru
+CreateLabel(AccountInfoContent, "Informasi Akun Pemain") -- [BARU] Judul
+
+-- Frame untuk Username dengan animasi [BARU - UPGRADE]
+local UsernameFrame = Instance.new("Frame")
+UsernameFrame.Parent = AccountInfoContent
+UsernameFrame.Size = UDim2.new(1, 0, 0, 50)
+UsernameFrame.BackgroundTransparency = 1
+UsernameFrame.ZIndex = 5
+
+local UsernameLabel = Instance.new("TextLabel")
+UsernameLabel.Parent = UsernameFrame
+UsernameLabel.Size = UDim2.new(0.7, 0, 1, 0)
+UsernameLabel.BackgroundTransparency = 1
+UsernameLabel.Text = "👤 Username Roblox: " .. LocalPlayer.DisplayName
+UsernameLabel.TextColor3 = Colors.Info
+UsernameLabel.Font = Enum.Font.SourceSansBold
+UsernameLabel.TextSize = 16
+UsernameLabel.TextXAlignment = Enum.TextXAlignment.Left
+UsernameLabel.ZIndex = 6
+
+-- Mini Avatar [BARU - UPGRADE]
+local AvatarImage = Instance.new("ImageLabel")
+AvatarImage.Parent = UsernameFrame
+AvatarImage.Size = UDim2.new(0, 40, 0, 40)
+AvatarImage.Position = UDim2.new(1, -45, 0.5, -20)
+AvatarImage.BackgroundTransparency = 1
+AvatarImage.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
+AvatarImage.ZIndex = 6
+Instance.new("UICorner", AvatarImage).CornerRadius = UDim.new(1, 0)
+
+-- Frame untuk Usia Akun dengan progress bar [BARU - UPGRADE]
+AgeFrame.Parent = AccountInfoContent
+AgeFrame.Size = UDim2.new(1, 0, 0, 70)
+AgeFrame.BackgroundTransparency = 1
+AgeFrame.ZIndex = 5
+
+AccountAgeLabel = Instance.new("TextLabel") -- [FIX] Definisikan variabel global
+AccountAgeLabel.Parent = AgeFrame
+AccountAgeLabel.Size = UDim2.new(1, 0, 0, 20)
+AccountAgeLabel.BackgroundTransparency = 1
+AccountAgeLabel.Text = "⏳ Usia Akun Roblox: Menghitung..."
+AccountAgeLabel.TextColor3 = Colors.Warning
+AccountAgeLabel.Font = Enum.Font.SourceSansBold
+AccountAgeLabel.TextSize = 14
+AccountAgeLabel.TextXAlignment = Enum.TextXAlignment.Left
+AccountAgeLabel.ZIndex = 6
+
+-- Progress Bar untuk Usia Akun [BARU - UPGRADE]
+local AgeBarBg = Instance.new("Frame", AgeFrame)
+AgeBarBg.Size = UDim2.new(1, 0, 0, 10)
+AgeBarBg.Position = UDim2.new(0, 0, 0, 25)
+AgeBarBg.BackgroundColor3 = Colors.Button
+AgeBarBg.ZIndex = 6
+Instance.new("UICorner", AgeBarBg).CornerRadius = UDim.new(1, 0)
+
+AgeBarProgress = Instance.new("Frame", AgeBarBg) -- [FIX] Definisikan variabel global
+AgeBarProgress.BackgroundColor3 = Colors.Accent
+AgeBarProgress.ZIndex = 7
+Instance.new("UICorner", AgeBarProgress).CornerRadius = UDim.new(1, 0)
+
+-- Frame untuk Waktu Bermain dengan progress bar [BARU - UPGRADE]
+local PlayTimeFrame = Instance.new("Frame")
+PlayTimeFrame.Parent = AccountInfoContent
+PlayTimeFrame.Size = UDim2.new(1, 0, 0, 70)
+PlayTimeFrame.BackgroundTransparency = 1
+PlayTimeFrame.ZIndex = 5
+
+PlayTimeLabel = Instance.new("TextLabel") -- [FIX] Definisikan variabel global
+PlayTimeLabel.Parent = PlayTimeFrame
+PlayTimeLabel.Size = UDim2.new(1, 0, 0, 20)
+PlayTimeLabel.BackgroundTransparency = 1
+PlayTimeLabel.Text = "🎣 Waktu Bermain di Fish It: Menghitung..."
+PlayTimeLabel.TextColor3 = Colors.AccentBright
+PlayTimeLabel.Font = Enum.Font.SourceSansBold
+PlayTimeLabel.TextSize = 14
+PlayTimeLabel.TextXAlignment = Enum.TextXAlignment.Left
+PlayTimeLabel.ZIndex = 6
+
+-- Progress Bar untuk Waktu Bermain [BARU - UPGRADE]
+local PlayBarBg = Instance.new("Frame", PlayTimeFrame)
+PlayBarBg.Size = UDim2.new(1, 0, 0, 10)
+PlayBarBg.Position = UDim2.new(0, 0, 0, 25)
+PlayBarBg.BackgroundColor3 = Colors.Button
+PlayBarBg.ZIndex = 6
+Instance.new("UICorner", PlayBarBg).CornerRadius = UDim.new(1, 0)
+
+PlayBarProgress = Instance.new("Frame", PlayBarBg) -- [FIX] Definisikan variabel global
+PlayBarProgress.BackgroundColor3 = Colors.Info
+PlayBarProgress.ZIndex = 7
+Instance.new("UICorner", PlayBarProgress).CornerRadius = UDim.new(1, 0)
+
+-- Tombol Refresh Info [BARU - UPGRADE]
+local RefreshButton = CreateButton(AccountInfoContent, "🔄 Refresh Info", function()
+	UpdateAccountInfo()
+	CreateNotification("Account Info Refreshed!") -- [BARU] Notifikasi
+	-- Animasi klik: Pulse effect
+	local originalSize = RefreshButton.Size
+	-- [FIX] Ganti animasi error, kita tween Y-Offsetnya saja
+	local newSize = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, originalSize.Y.Scale, originalSize.Y.Offset * 1.1)
+	TweenService:Create(RefreshButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {Size = newSize}):Play()
+	wait(0.1)
+	TweenService:Create(RefreshButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {Size = originalSize}):Play()
+end, Colors.Warning)
+
+-- ==========================================================================
+-- INISIALISASI
+-- ==========================================================================
+
+SwitchTab("Auto Fishing")
+
+-- [BARU] Update otomatis setiap 5 detik, tapi cuma kalau tab aktif
+spawn(function()  -- [FIX] Ganti dari task.spawn
+	while MainFrame and MainFrame.Parent == PlayerGui do -- [FIX] Loop hanya selama UI ada
+		if CurrentTab and (CurrentTab.Name == "Player Config" or CurrentTab.Name == "Account Info") then 
+			UpdatePlayerStats()
+			UpdateAccountInfo()
+		end
+		wait(5) -- Update setiap 5 detik
+	end
+end)
+
+-- Panggil sekali saat load [BARU]
+UpdatePlayerStats()
+UpdateAccountInfo()
+
+print("MengHub Custom UI Berhasil Dimuat!")
